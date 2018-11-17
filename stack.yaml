@@ -42,6 +42,7 @@ extra-deps:
     commit: 18d6bf454f913668548d1d990680d962bd82b450
   - murmur3-1.0.3
   - secp256k1-haskell-0.1.4
+  - random-strings-0.1.1.0
 
 # Override default flag values for local packages and extra-deps
 # flags: {}

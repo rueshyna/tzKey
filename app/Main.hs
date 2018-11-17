@@ -5,9 +5,10 @@ module Main where
 import Arg
 import Lib
 
-import Data.Either
 import Data.Maybe
+import Data.Either
 import Data.Bifunctor
+import qualified Test.RandomStrings as R
 
 import qualified Data.Text as T
 import qualified Data.ByteString as B
@@ -22,64 +23,37 @@ main = do
   opts <- O.execParser $ O.info (O.helper <*> cmd) O.fullDesc
 
   case opts of
-    GenMnemonic {} -> do
-      let m = genMnemonic opts
-      putStrLn $ either id id $ first show m
-    GenSeed {} -> do
-      let s = genSeed opts
-      putStrLn $ either id id $ first show s
+    GenMnemonic e -> do
+      r <- R.randomString (R.onlyWith (`elem` hexRange)  R.randomChar8) 32
+      let ent = fromMaybe r e
+      let m = genMnemonic ent
+      putStrLn $ either show id m
+    GenKeyPair p m f -> do
+      let pwd = BC.pack <$> p
+      let mnemonic = T.pack m
+      let eSeed = genSeed pwd mnemonic
+      let eKp = keypairFromSeed <$> eSeed
+      let epKp = opPair str <$> eKp
+      let etKp = opPair T.unpack
+               . bimap (base54Check edpkPrefix) (base54Check edskPrefix)
+               <$> eKp
+      let etH = first
+                  ( T.unpack. base54Check tz1Prefix
+                  . \k -> cryptoGenerichash k "" 20)
+               <$> eKp
 
-{-
-  putStr "mnemonic: "
-  let mnemonic = "marble child tag office replace lend stem viable damp prize chef credit soda valid idea"
-  let passphrase = ""
+      let out = case f of
+                  Primitive -> either show kpOut epKp
+                  Tezos -> either show kpOut etKp
+                        ++ either show wOut etH
 
-  putStr "seed: "
-  let seed = either (const "") id $
-               H.mnemonicToSeed passphrase mnemonic
+      putStrLn out
 
-  putStrLn $ str seed
+wOut :: (String, a) -> String
+wOut (w, _) = "wallet address\n" ++ w
 
-  let (k, s) = keypairFromSeed seed
-  putStrLn "public key:"
-  putStrLn $ str k
-  putStrLn "private key:"
-  putStrLn $ str s
-
-  putStrLn "generic hash:"
-  let gh = cryptoGenerichash k "" 20
-  putTextLn $ base54Check gh tz1Prefix
-
-  putStrLn "tz public key:"
-  putTextLn $ base54Check k edpkPrefix
-
-  putStrLn "tz private key:"
-  putTextLn $ base54Check s edskPrefix
--}
-  return ()
-
-genMnemonic :: Arg -> Either Err String
-genMnemonic (GenMnemonic e) =
-    bimap ToMnemonicErr T.unpack $ H.toMnemonic entropy
-    where entropy :: H.Entropy
-          entropy = BC.pack $ fromMaybe (BC.unpack defaultEntropy) e
-genMnemonic _ = Left NoImplement
-
-genSeed :: Arg -> Either Err String
-genSeed (GenSeed p s) =
-    bimap ToSeedErr str $ H.mnemonicToSeed pwd mnemonic
-    where pwd :: H.Passphrase
-          pwd = BC.pack $ fromMaybe "" p
-          mnemonic :: H.Mnemonic
-          mnemonic = T.pack s
-
-{-
-genKeyPair :: Arg -> Either Err String
-genKeyPair (GenKeyPair s Tezos) = Left NoImplement
-genKeyPair (GenKeyPair s Primitive) = do
-    where seed :: BC.ByteString
-          seed = 
-          (k, s) = keypairFromSeed seed
-
-genKeyPair _ = Left NoImplement
--}
+kpOut :: (String, String) -> String
+kpOut (pk, sk) = "public key\n" ++ pk
+               ++ "\n\n"
+               ++ "private key\n" ++ sk
+               ++ "\n\n"

@@ -7,6 +7,9 @@ import Foreign.Ptr
 import Foreign.ForeignPtr
 import Foreign.Marshal.Alloc
 
+import Data.Maybe
+import Data.Bifunctor
+
 import qualified Data.HexString as X
 import qualified Data.Text as T
 import qualified Data.ByteString as B
@@ -48,19 +51,36 @@ edpkPrefix = BC.pack "\13\15\37\217"
 edskPrefix :: B.ByteString
 edskPrefix = BC.pack "\43\246\78\7"
 
-defaultEntropy :: B.ByteString
-defaultEntropy = hex "7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f"
+hexRange :: String
+hexRange = "0123456789abcdef"
 
 sha256' :: B.ByteString -> B.ByteString
 sha256' =  S.encode . HC.sha256
 
-base54Check :: B.ByteString  -- ^ payload
-            -> B.ByteString  -- ^ version byte
+opPair :: (a -> b)
+          -> (a, a)
+          -> (b, b)
+opPair f (a, b) = (f a, f b)
+
+base54Check :: B.ByteString  -- ^ version bytes
+            -> B.ByteString  -- ^ payload bytes
             -> T.Text
-base54Check p v = H.encodeBase58 target
+base54Check v p = H.encodeBase58 target
     where verPayload = B.append v p
           checksum = B.take 4 . sha256' . sha256'
           target = B.append verPayload $ checksum verPayload
+
+genMnemonic :: String -> Either Err String
+genMnemonic e =
+    bimap ToMnemonicErr T.unpack $ H.toMnemonic entropy
+    where entropy :: H.Entropy
+          entropy = BC.pack e
+
+genSeed :: Maybe H.Passphrase -> H.Mnemonic -> Either Err H.Seed
+genSeed p m =
+    bimap ToSeedErr id $ H.mnemonicToSeed pwd m
+    where pwd :: H.Passphrase
+          pwd = fromMaybe "" p
 
 keypairFromSeed :: B.ByteString -> (B.ByteString, B.ByteString)
 keypairFromSeed seed =
@@ -77,7 +97,7 @@ keypairFromSeed seed =
           return (SI.fromForeignPtr pk 0 cryptoSignPUBLICKEYBYTES,
                   SI.fromForeignPtr sk 0 cryptoSignSECRETKEYBYTES)
 
-cryptoGenerichash :: B.ByteString  -- ^ intput
+cryptoGenerichash :: B.ByteString  -- ^ input
                   -> B.ByteString  -- ^ key
                   -> Int           -- ^ length of genericHash
                   -> B.ByteString

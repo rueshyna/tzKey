@@ -47,6 +47,7 @@ executables:
     - text
     - bytestring
     - optparse-applicative
+    - random-strings
 
 tests:
   tzKey-test:
