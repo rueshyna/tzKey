@@ -30,9 +30,11 @@ library:
     - hexstring
     - haskoin-core
     - cereal
+    - optparse-applicative
+  extra-libraries: sodium
 
 executables:
-  tzKey-exe:
+  tzKey:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
@@ -41,16 +43,10 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - tzKey
-    - saltine
-    - bytestring
     - haskoin-core
-    - hexstring
     - text
-    - ed25519
-    - cereal
-    install-includes:
-    - sodium.h
-
+    - bytestring
+    - optparse-applicative
 
 tests:
   tzKey-test:

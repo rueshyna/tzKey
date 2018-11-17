@@ -14,13 +14,24 @@ import qualified Data.ByteString.Internal as SI
 import qualified Data.ByteString.Unsafe as SU
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.ByteString.Short as BS
+
 import qualified Network.Haskoin.Keys as H
 import qualified Network.Haskoin.Crypto as HC
+import qualified Network.Haskoin.Address.Base58 as H
+
 import Data.Serialize as S
 import Data.HexString as X
 import Data.Word
 
 import System.IO.Unsafe
+
+data Err = NoImplement
+         | ToMnemonicErr String
+         | ToSeedErr String
+         deriving (Show, Eq)
+
+putTextLn :: T.Text -> IO ()
+putTextLn = putStrLn . T.unpack
 
 hex :: B.ByteString -> B.ByteString
 hex = X.toBytes . X.hexString
@@ -37,11 +48,22 @@ edpkPrefix = BC.pack "\13\15\37\217"
 edskPrefix :: B.ByteString
 edskPrefix = BC.pack "\43\246\78\7"
 
-sha256_ :: B.ByteString -> B.ByteString
-sha256_ =  S.encode . HC.sha256
+defaultEntropy :: B.ByteString
+defaultEntropy = hex "7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f"
 
-createKeypairFromSeed' :: B.ByteString -> (B.ByteString, B.ByteString)
-createKeypairFromSeed' seed =
+sha256' :: B.ByteString -> B.ByteString
+sha256' =  S.encode . HC.sha256
+
+base54Check :: B.ByteString  -- ^ payload
+            -> B.ByteString  -- ^ version byte
+            -> T.Text
+base54Check p v = H.encodeBase58 target
+    where verPayload = B.append v p
+          checksum = B.take 4 . sha256' . sha256'
+          target = B.append verPayload $ checksum verPayload
+
+keypairFromSeed :: B.ByteString -> (B.ByteString, B.ByteString)
+keypairFromSeed seed =
     unsafePerformIO $ do
           pk <- SI.mallocByteString cryptoSignPUBLICKEYBYTES
           sk <- SI.mallocByteString cryptoSignSECRETKEYBYTES

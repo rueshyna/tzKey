@@ -2,19 +2,34 @@
 
 module Main where
 
+import Arg
 import Lib
+
 import Data.Either
+import Data.Maybe
+import Data.Bifunctor
+
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
-import qualified Network.Haskoin.Keys as H
-import qualified Network.Haskoin.Address.Base58 as H
-import Data.HexString as X
-import Data.Serialize.Put
 
+import qualified Options.Applicative as O
+import qualified Network.Haskoin.Keys as H
+
+{-# ANN main("HLint: ignore Use void" :: String )#-}
 main :: IO ()
 main = do
+  opts <- O.execParser $ O.info (O.helper <*> cmd) O.fullDesc
+
+  case opts of
+    GenMnemonic {} -> do
+      let m = genMnemonic opts
+      putStrLn $ either id id $ first show m
+    GenSeed {} -> do
+      let s = genSeed opts
+      putStrLn $ either id id $ first show s
+
+{-
   putStr "mnemonic: "
   let mnemonic = "marble child tag office replace lend stem viable damp prize chef credit soda valid idea"
   let passphrase = ""
@@ -25,7 +40,7 @@ main = do
 
   putStrLn $ str seed
 
-  let (k, s) = createKeypairFromSeed' seed
+  let (k, s) = keypairFromSeed seed
   putStrLn "public key:"
   putStrLn $ str k
   putStrLn "private key:"
@@ -33,26 +48,38 @@ main = do
 
   putStrLn "generic hash:"
   let gh = cryptoGenerichash k "" 20
-  let prefixedGenericHash = B.append tz1Prefix gh
-  let firstFourOfDoubleChecksumH = B.take 4 $ sha256_ $ sha256_ prefixedGenericHash
-  let prefixedPKhashWithChecksum = B.append prefixedGenericHash firstFourOfDoubleChecksumH
-  let pkh = H.encodeBase58 prefixedPKhashWithChecksum 
-  putStrLn $ T.unpack pkh
-
-  let prefixedPubKey = B.append edpkPrefix k
-  let firstFourOfDoubleChecksumP = B.take 4 $ sha256_ $ sha256_ prefixedPubKey
-  let prefixedPubKeyWithChecksum = B.append prefixedPubKey firstFourOfDoubleChecksumP
-  let tezosPkString = H.encodeBase58 prefixedPubKeyWithChecksum
+  putTextLn $ base54Check gh tz1Prefix
 
   putStrLn "tz public key:"
-  putStrLn $ T.unpack tezosPkString
-
-  let prefixedSecKey = B.append edskPrefix s
-  let firstFourOfDoubleChecksumS = B.take 4 $ sha256_ $ sha256_ prefixedSecKey
-  let prefixedSecKeyWithChecksum = B.append prefixedSecKey firstFourOfDoubleChecksumS
-  let tezosSkString = H.encodeBase58 prefixedSecKeyWithChecksum
+  putTextLn $ base54Check k edpkPrefix
 
   putStrLn "tz private key:"
-  putStrLn $ T.unpack tezosSkString
-
+  putTextLn $ base54Check s edskPrefix
+-}
   return ()
+
+genMnemonic :: Arg -> Either Err String
+genMnemonic (GenMnemonic e) =
+    bimap ToMnemonicErr T.unpack $ H.toMnemonic entropy
+    where entropy :: H.Entropy
+          entropy = BC.pack $ fromMaybe (BC.unpack defaultEntropy) e
+genMnemonic _ = Left NoImplement
+
+genSeed :: Arg -> Either Err String
+genSeed (GenSeed p s) =
+    bimap ToSeedErr str $ H.mnemonicToSeed pwd mnemonic
+    where pwd :: H.Passphrase
+          pwd = BC.pack $ fromMaybe "" p
+          mnemonic :: H.Mnemonic
+          mnemonic = T.pack s
+
+{-
+genKeyPair :: Arg -> Either Err String
+genKeyPair (GenKeyPair s Tezos) = Left NoImplement
+genKeyPair (GenKeyPair s Primitive) = do
+    where seed :: BC.ByteString
+          seed = 
+          (k, s) = keypairFromSeed seed
+
+genKeyPair _ = Left NoImplement
+-}
