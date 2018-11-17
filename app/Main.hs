@@ -41,13 +41,19 @@ main = do
                   ( T.unpack. base54Check tz1Prefix
                   . \k -> cryptoGenerichash k "" 20)
                <$> eKp
+      let seed = either show str eSeed
 
       let out = case f of
                   Primitive -> either show kpOut epKp
                   Tezos -> either show kpOut etKp
                         ++ either show wOut etH
 
+      putStrLn $ seedOut seed
+      putStrLn ""
       putStrLn out
+
+seedOut :: String -> String
+seedOut s = "seed\n" ++ s
 
 wOut :: (String, a) -> String
 wOut (w, _) = "wallet address\n" ++ w
