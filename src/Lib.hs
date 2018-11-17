@@ -74,7 +74,7 @@ genMnemonic :: String -> Either Err String
 genMnemonic e =
     bimap ToMnemonicErr T.unpack $ H.toMnemonic entropy
     where entropy :: H.Entropy
-          entropy = BC.pack e
+          entropy = hex $ BC.pack e
 
 genSeed :: Maybe H.Passphrase -> H.Mnemonic -> Either Err H.Seed
 genSeed p m =
