@@ -37,7 +37,7 @@ entropy_ =
       "entropy in a multiple of 32 bits"
       'e'
       "ENTROPY"
-      "Using [0-9][a-f] to present, For example: f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7"
+      "Using [0-9][a-f] to present, For example: f7f7. Default will generate 256 bits randomly."
 
 seed_ :: Parser (Maybe String)
 seed_ =
@@ -70,7 +70,7 @@ fmtGenKp_ :: Parser Format
 fmtGenKp_ =
     fmtArg
       (\x -> (read :: String -> Format) <$> strOption x)
-      "Tezos | Primitive"
+      "format"
       'f'
       "FORMAT_GEN_KEYPAIR"
       "Tezos | Primitive"
